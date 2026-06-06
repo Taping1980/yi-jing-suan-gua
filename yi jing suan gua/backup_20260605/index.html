@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>兵器破阵 · 易经起卦 v2.0</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --gold: #d4a843;
+    --gold-light: #f0d68a;
+    --red: #c0392b;
+    --bronze: #cd7f32;
+    --silver: #a8b8c8;
+    --king: #ffd700;
+    --text: #c8beb4;
+    --text-dim: #6b6358;
+    --panel-bg: rgba(15,12,8,0.95);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    font-family: "STKaiti","KaiTi","楷体","SimSun","宋体",serif;
+    user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  #particleCanvas { position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100; }
+
+  .bg-ambient {
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background: radial-gradient(ellipse at 50% 40%,rgba(180,140,60,0.08) 0%,transparent 60%),
+                radial-gradient(ellipse at 30% 70%,rgba(60,20,20,0.06) 0%,transparent 50%),
+                radial-gradient(ellipse at 70% 70%,rgba(60,20,20,0.06) 0%,transparent 50%);
+    z-index:0; pointer-events:none;
+  }
+  .bg-ink {
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background: radial-gradient(circle at 20% 30%,rgba(30,25,18,0.5) 0%,transparent 50%),
+                radial-gradient(circle at 80% 60%,rgba(25,20,15,0.4) 0%,transparent 45%),
+                radial-gradient(circle at 50% 80%,rgba(20,15,10,0.3) 0%,transparent 40%);
+    z-index:0; pointer-events:none;
+    animation: inkDrift 12s ease-in-out infinite;
+  }
+  @keyframes inkDrift { 0%,100%{opacity:.7;transform:scale(1)} 50%{opacity:1;transform:scale(1.03)} }
+
+  .top-bar {
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    padding: 8px 12px;
+    display:flex; justify-content:space-between; align-items:center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+  }
+  .user-info { display:flex; align-items:center; gap:12px; }
+  .user-level { color: var(--gold-light); font-size:13px; letter-spacing:2px; border:1px solid rgba(180,140,60,0.4); border-radius:6px; padding:3px 10px; background: rgba(180,140,60,0.1); }
+  .spirit-display { color: #7ec8e3; font-size:13px; letter-spacing:1px; border:1px solid rgba(126,200,227,0.4); border-radius:6px; padding:3px 10px; background: rgba(126,200,227,0.1); }
+  .top-btns { display:flex; gap:6px; }
+  .top-btn { font-size:12px; letter-spacing:2px; padding:5px 12px; border-radius:6px; cursor:pointer; font-family:inherit; transition:all .25s; border:1px solid rgba(180,140,60,0.4); color:var(--text); background: rgba(0,0,0,0.5); }
+  .top-btn:hover { border-color:rgba(180,140,60,0.8); color:var(--gold-light); }
+  .top-btn.signin { border-color:rgba(100,200,100,0.5); color:#7ec8a0; }
+  .top-btn.signin:hover { border-color:rgba(100,200,100,0.9); }
+  .top-btn.signin.done { border-color:rgba(100,100,100,0.3); color:#555; cursor:default; }
+
+  .fortune-bar {
+    position:fixed; top:44px; left:0; right:0; z-index:49;
+    padding:3px 16px; display:flex; justify-content:center; align-items:center; gap:12px;
+    background: rgba(0,0,0,0.4); font-size:11px; color:var(--text-dim);
+    border-bottom:1px solid rgba(255,255,255,0.03);
+  }
+  .fortune-bar .fortune-label { color:var(--gold-light); letter-spacing:2px; }
+  .fortune-bar .fortune-val { font-weight:bold; }
+  .fortune-bar .fortune-val.daji { color:#ffd700; }
+  .fortune-bar .fortune-val.ji { color:#7ec8a0; }
+  .fortune-bar .fortune-val.xiaoji { color:#a8c878; }
+  .fortune-bar .fortune-val.ping { color:var(--text); }
+  .fortune-bar .fortune-val.xiaoxiong { color:#d4a843; }
+  .fortune-bar .fortune-val.xiong { color:#c0392b; }
+
+  .question-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.88); z-index:280; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .4s; }
+  .question-overlay.active { opacity:1; pointer-events:auto; }
+  .question-panel { background: linear-gradient(180deg, #1a1510 0%, #0f0d08 100%); border:1px solid rgba(180,140,60,0.5); border-radius:14px; padding:20px; max-width:380px; width:92%; text-align:center; box-shadow:0 0 60px rgba(200,160,60,0.2); }
+  .question-panel textarea { width:100%; height:80px; background:rgba(0,0,0,0.5); border:1px solid rgba(180,140,60,0.4); border-radius:8px; color:var(--text); font-family:inherit; font-size:14px; padding:10px; resize:none; margin:12px 0; outline:none; }
+  .question-panel textarea:focus { border-color:rgba(180,140,60,0.8); }
+  .question-panel .hint { font-size:11px; color:var(--text-dim); margin-bottom:4px; }
+  .question-panel .skip-btn { background:none; border:none; color:var(--text-dim); font-size:12px; cursor:pointer; font-family:inherit; margin-top:8px; text-decoration:underline; }
+
+  .hex-line-builder { display:flex; flex-direction:column; align-items:center; gap:2px; margin:10px 0; }
+  .hex-line-builder .hl-row { display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text); opacity:0; transform:translateX(-20px); transition:all .35s ease-out; }
+  .hex-line-builder .hl-row.show { opacity:1; transform:translateX(0); }
+  .hex-line-builder .hl-coins { font-size:16px; width:50px; text-align:center; }
+  .hex-line-builder .hl-yao { font-size:24px; width:36px; text-align:center; }
+  .hex-line-builder .hl-yao.lao { color:#e74c3c; animation: pulse .8s infinite; }
+  .hex-line-builder .hl-result { font-size:11px; color:var(--text-dim); width:40px; }
+
+  .task-list { display:flex; flex-direction:column; gap:8px; margin:12px 0; }
+  .task-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05); text-align:left; }
+  .task-item.completed { border-color:rgba(180,140,60,0.3); }
+  .task-item.claimed { opacity:.5; }
+  .task-progress { font-size:10px; color:var(--text-dim); }
+  .task-progress .done { color:var(--gold-light); }
+  .task-reward { font-size:10px; color:var(--gold-light); margin-left:auto; }
+  .task-claim-btn { font-size:10px; padding:3px 10px; border-radius:4px; border:1px solid rgba(180,140,60,0.5); color:var(--gold-light); background:rgba(180,140,60,0.15); cursor:pointer; font-family:inherit; }
+  .task-claim-btn:hover { background:rgba(180,140,60,0.3); }
+  .task-claim-btn:disabled { opacity:.3; cursor:default; }
+
+  .knowledge-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; max-height:50vh; overflow-y:auto; padding:4px; }
+  .knowledge-card { padding:6px 4px; border-radius:6px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05); cursor:pointer; text-align:center; transition:all .2s; }
+  .knowledge-card:hover { border-color:rgba(180,140,60,0.5); background:rgba(180,140,60,0.1); }
+  .knowledge-card .kc-symbol { font-size:22px; }
+  .knowledge-card .kc-name { font-size:9px; color:var(--text-dim); margin-top:2px; }
+  .knowledge-search { width:100%; padding:6px 10px; background:rgba(0,0,0,0.5); border:1px solid rgba(180,140,60,0.4); border-radius:6px; color:var(--text); font-family:inherit; font-size:13px; margin-bottom:8px; outline:none; }
+
+  .mirror-container { position:absolute; top:14%; left:50%; transform:translateX(-50%); z-index:10; display:flex; flex-direction:column; align-items:center; }
+  .mirror {
+    width:190px; height:190px; border-radius:50%;
+    background: radial-gradient(circle at 40% 35%,#2a2518 0%,#0f0d08 60%,#050403 100%);
+    border:3px solid rgba(180,140,60,0.5);
+    box-shadow: 0 0 40px rgba(200,160,60,0.25),0 0 80px rgba(200,160,60,0.12),inset 0 0 60px rgba(0,0,0,0.6);
+    position:relative; display:flex; align-items:center; justify-content:center;
+    animation: mirrorFloat 5s ease-in-out infinite, mirrorGlow 4s ease-in-out infinite;
+    transition: border-color .3s, box-shadow .3s;
+  }
+  .mirror.highlight {
+    border-color:rgba(240,210,130,0.9)!important;
+    box-shadow: 0 0 60px rgba(240,200,80,0.5),0 0 120px rgba(240,200,80,0.2),inset 0 0 80px rgba(0,0,0,0.6)!important;
+  }
+  .mirror.shake { animation: mirrorShake .4s ease-out!important; }
+  .mirror.shatter { animation: mirrorShatter .6s ease-out forwards!important; }
+  @keyframes mirrorFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  @keyframes mirrorGlow { 0%,100%{box-shadow:0 0 40px rgba(200,160,60,0.25),0 0 80px rgba(200,160,60,0.12),inset 0 0 60px rgba(0,0,0,0.6)} 50%{box-shadow:0 0 55px rgba(200,160,60,0.35),0 0 100px rgba(200,160,60,0.18),inset 0 0 60px rgba(0,0,0,0.6)} }
+  @keyframes mirrorShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-10px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(4px)} }
+  @keyframes mirrorShatter { 0%{transform:scale(1);opacity:1} 50%{transform:scale(1.12);opacity:.6} 100%{transform:scale(.3);opacity:0} }
+
+  .bagua-svg { width:120px; height:120px; position:absolute; }
+  .trigram-line { stroke:rgba(200,160,60,0.7); stroke-width:2; fill:none; transition:stroke .3s; }
+  .mirror.highlight .trigram-line { stroke:rgba(240,210,130,0.95); }
+
+  .taiji { position:absolute; width:58px; height:58px; border-radius:50%; background: conic-gradient(#e8dcc8 0deg 180deg,#1a1510 180deg 360deg); opacity:.75; animation: taijiSpin 20s linear infinite; }
+  @keyframes taijiSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .taiji::before { content:""; position:absolute; width:11px; height:11px; border-radius:50%; background:#e8dcc8; top:40px; left:23px; box-shadow:0 0 6px rgba(0,0,0,0.3); }
+  .taiji::after  { content:""; position:absolute; width:11px; height:11px; border-radius:50%; background:#1a1510; top:7px; left:23px; box-shadow:0 0 6px rgba(255,255,255,0.1); }
+
+  .mirror-label { margin-top:8px; color:rgba(200,180,140,0.7); font-size:13px; letter-spacing:6px; text-shadow:0 0 10px rgba(200,160,60,0.3); }
+
+  .coin-anim-overlay { position:fixed; top:0; left:0; width:100%; height:100%; z-index:250; pointer-events:none; display:none; justify-content:center; align-items:center; }
+  .coin-anim-overlay.active { display:flex; }
+  .coin { position:absolute; font-size:40px; animation: coinDrop .6s ease-in forwards; opacity:0; }
+  @keyframes coinDrop { 0%{transform:translateY(-100px) rotate(0deg);opacity:1} 60%{transform:translateY(10px) rotate(720deg);opacity:1} 80%{transform:translateY(-5px) rotate(740deg);opacity:1} 100%{transform:translateY(0) rotate(720deg);opacity:1} }
+
+  .arsenal {
+    position:absolute; bottom:0; left:0; right:0;
+    background: linear-gradient(to top, rgba(10,8,5,0.95) 0%, rgba(10,8,5,0.85) 70%, transparent 100%);
+    padding: 10px 16px 20px; z-index:20; display:flex; flex-direction:column; gap:6px;
+  }
+  .tier { display:flex; align-items:center; gap:8px; }
+  .tier-label { font-size:12px; letter-spacing:2px; width:48px; text-align:center; flex-shrink:0; padding:2px 0; border-radius:4px; }
+  .tier-label.bronze { color:#cd7f32; border:1px solid rgba(205,127,50,0.35); background:rgba(205,127,50,0.08); }
+  .tier-label.silver  { color:#a8b8c8; border:1px solid rgba(168,184,200,0.35); background:rgba(168,184,200,0.08); }
+  .tier-label.king   { color:#ffd700; border:1px solid rgba(255,215,0,0.35);  background:rgba(255,215,0,0.08); }
+
+  .weapons-row { display:flex; gap:8px; flex:1; }
+  .weapon-card {
+    flex:1; background: linear-gradient(180deg, rgba(30,25,15,0.6) 0%, rgba(15,12,8,0.9) 100%);
+    border:1px solid rgba(80,60,30,0.4); border-radius:10px;
+    padding:8px 5px; display:flex; flex-direction:column; align-items:center; gap:3px;
+    cursor:grab; transition:all .25s; position:relative; overflow:hidden;
+  }
+  .weapon-card:active { cursor:grabbing; }
+  .weapon-card:hover:not(.locked) {
+    border-color:rgba(180,140,60,0.7);
+    background: linear-gradient(180deg, rgba(50,40,20,0.7) 0%, rgba(25,18,10,0.9) 100%);
+    transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,0,0,0.5);
+  }
+  .weapon-card.locked { cursor:not-allowed; filter:grayscale(0.8) brightness(0.4); opacity:.5; }
+  .weapon-card.locked::after { content:attr(data-hint); position:absolute; top:50%;left:50%; transform:translate(-50%,-50%); font-size:10px; color:rgba(255,255,255,0.4); white-space:nowrap; }
+  .weapon-card.locked .weapon-icon,.weapon-card.locked .weapon-name { filter:blur(2px); }
+  .weapon-card.dragging { opacity:.4; transform:scale(.9); }
+  .weapon-icon { font-size:30px; line-height:1; }
+  .weapon-name { font-size:12px; color:var(--text); letter-spacing:1px; text-align:center; }
+  .weapon-rate { font-size:10px; color:var(--text-dim); }
+  .weapon-lv { font-size:10px; color:var(--gold); }
+  .weapon-card .upgrade-btn {
+    display:none; font-size:10px; padding:2px 8px; border-radius:4px;
+    border:1px solid rgba(180,140,60,0.5); color:var(--gold); background:rgba(0,0,0,0.5);
+    cursor:pointer; font-family:inherit; letter-spacing:1px;
+  }
+  .weapon-card:hover:not(.locked) .upgrade-btn { display:block; }
+  .weapon-card:hover:not(.locked) .weapon-rate { display:none; }
+
+  .drag-ghost { position:fixed; pointer-events:none; z-index:200; font-size:42px; transform:translate(-50%,-50%); filter:drop-shadow(0 0 15px rgba(240,200,80,0.7)); opacity:.9; }
+
+  .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:300; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .4s; }
+  .modal-overlay.active { opacity:1; pointer-events:auto; }
+  .modal-panel { background: linear-gradient(180deg, #1a1510 0%, #0f0d08 100%); border:1px solid rgba(180,140,60,0.5); border-radius:14px; padding:24px 20px; max-width:420px; width:92%; max-height:85vh; overflow-y:auto; text-align:center; box-shadow:0 0 60px rgba(200,160,60,0.2); animation: panelAppear .4s ease-out; }
+  @keyframes panelAppear { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+
+  .loading-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:250; display:flex; align-items:center; justify-content:center; }
+  .loading-content { text-align:center; padding:30px 40px; background:rgba(26,21,16,0.95); border:1px solid rgba(180,140,60,0.4); border-radius:16px; }
+  .loading-spinner { font-size:48px; animation: spin 2s linear infinite; margin-bottom:16px; }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .loading-text { font-size:16px; color:var(--gold-light); letter-spacing:4px; margin-bottom:8px; }
+  .loading-dots { font-size:24px; color:var(--text-dim); }
+  .loading-dots span { animation: dotPulse 1.4s infinite ease-in-out both; }
+  .loading-dots span:nth-child(1) { animation-delay:0s; }
+  .loading-dots span:nth-child(2) { animation-delay:0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay:0.4s; }
+  @keyframes dotPulse { 0%,80%,100%{transform:scale(0);opacity:0} 40%{transform:scale(1);opacity:1} }
+
+  .hexagram-display { display:flex; justify-content:center; gap:16px; margin:12px 0; flex-wrap:wrap; }
+  .hex-box { text-align:center; padding:10px; border:1px solid rgba(180,140,60,0.3); border-radius:10px; min-width:80px; background:rgba(0,0,0,0.3); }
+  .hex-symbol { font-size:40px; }
+  .hex-name { font-size:14px; color:var(--gold-light); letter-spacing:2px; margin-top:4px; }
+  .hex-box.changed { border-color:rgba(200,60,40,0.4); }
+  .hex-box.changed .hex-name { color:#e74c3c; }
+
+  .lines-display { margin:16px 0; }
+  .line-row { display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .line-symbol { font-size:22px; width:30px; text-align:center; }
+  .line-symbol.yang { color:var(--gold-light); }
+  .line-symbol.yin { color:var(--text-dim); }
+  .line-symbol.changing { color:#e74c3c; animation: pulse .8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .line-text { font-size:12px; color:var(--text); text-align:left; flex:1; }
+  .line-tag { font-size:10px; color:var(--text-dim); width:36px; text-align:right; }
+
+  .judgment-text { font-size:13px; color:var(--text); line-height:1.8; margin:12px 0; }
+  .ai-judgment { background:rgba(180,140,60,0.08); border:1px solid rgba(180,140,60,0.2); border-radius:10px; padding:16px; margin:14px 0; font-size:13px; color:var(--text); line-height:1.9; text-align:left; white-space:pre-wrap; word-wrap:break-word; }
+  .ai-judgment .ai-label { color:var(--gold-light); font-size:11px; letter-spacing:3px; margin-bottom:10px; display:block; }
+  .ai-judgment .ai-section { color:var(--gold-light); font-size:14px; font-weight:bold; margin-top:14px; margin-bottom:6px; display:block; }
+  .ai-judgment .ai-content { padding-left:16px; border-left:2px solid rgba(180,140,60,0.4); margin-bottom:12px; line-height:2; }
+  .ai-judgment .ai-check { color:#4ade80; margin-right:6px; }
+  .ai-judgment .ai-warn { color:#fbbf24; margin-right:6px; }
+  .ai-judgment .ai-list-item { margin-left:20px; padding-left:8px; margin-bottom:6px; }
+  .ai-judgment .ai-paragraph { margin-bottom:10px; }
+
+  .modal-btn { background: linear-gradient(180deg, rgba(180,140,60,0.3) 0%, rgba(100,70,20,0.3) 100%); border:1px solid rgba(180,140,60,0.6); color:var(--gold-light); font-size:14px; letter-spacing:3px; padding:8px 24px; border-radius:8px; cursor:pointer; font-family:inherit; transition:all .3s; margin:4px; }
+  .modal-btn:hover { background: linear-gradient(180deg, rgba(200,160,70,0.45) 0%, rgba(120,85,30,0.4) 100%); box-shadow:0 0 16px rgba(200,160,60,0.3); }
+
+  .hist-item:hover { background:rgba(180,140,60,0.15); }
+
+  .ach-list { display:flex; flex-direction:column; gap:6px; margin:12px 0; }
+  .ach-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05); }
+  .ach-item.unlocked { border-color:rgba(180,140,60,0.3); }
+  .ach-icon { font-size:20px; width:28px; text-align:center; }
+  .ach-info { flex:1; text-align:left; }
+  .ach-name { font-size:13px; color:var(--text); }
+  .ach-desc { font-size:11px; color:var(--text-dim); }
+  .ach-item.locked { filter:grayscale(1); opacity:.5; }
+
+  .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); border:1px solid rgba(180,140,60,0.5); color:var(--gold-light); padding:8px 20px; border-radius:8px; font-size:13px; letter-spacing:2px; z-index:400; opacity:0; pointer-events:none; transition:opacity .3s; }
+  .toast.show { opacity:1; }
+
+  @media (max-width:500px) {
+    .mirror { width:150px; height:150px; }
+    .bagua-svg { width:95px; height:95px; }
+    .taiji { width:46px; height:46px; }
+    .taiji::before { width:9px; height:9px; top:32px; left:18px; }
+    .taiji::after  { width:9px; height:9px; top:5px; left:18px; }
+    .weapon-icon { font-size:24px; }
+    .weapon-name { font-size:10px; }
+    .tier-label { font-size:10px; width:40px; }
+    .arsenal { padding:8px 10px 14px; gap:4px; }
+    .weapons-row { gap:5px; }
+    .user-level,.spirit-display { font-size:11px; padding:2px 8px; }
+    .top-btn { font-size:10px; padding:4px 8px; }
+    .hex-symbol { font-size:32px; }
+    .hex-box { min-width:60px; padding:8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-ambient"></div>
+<div class="bg-ink"></div>
+<canvas id="particleCanvas"></canvas>
+<div class="toast" id="toast"></div>
+
+<!-- 顶栏 -->
+<div class="top-bar">
+  <div class="user-info">
+    <div class="user-level" id="levelDisplay">道行 1 级</div>
+    <div class="spirit-display" id="spiritDisplay">灵力 10</div>
+  </div>
+  <div class="top-btns">
+    <button class="top-btn signin" id="signinBtn" onclick="game.signIn()">签 到</button>
+    <button class="top-btn" onclick="game.showDailyTasks()">任 务</button>
+    <button class="top-btn" onclick="game.showAchievements()">成 就</button>
+    <button class="top-btn" onclick="game.showKnowledge()">卦 典</button>
+    <button class="top-btn" onclick="game.showHistory()">记 录</button>
+  </div>
+</div>
+
+<!-- 今日状态 -->
+<div class="fortune-bar" id="fortuneBar" style="display:none">
+  <span class="fortune-label">今日状态</span>
+  <span class="fortune-val" id="fortuneVal">--</span>
+  <span id="fortuneAdvice" style="font-size:10px;color:var(--text-dim)"></span>
+</div>
+
+<!-- 八卦镜 -->
+<div class="mirror-container">
+  <div class="mirror" id="mirror">
+    <svg class="bagua-svg" viewBox="0 0 140 140">
+      <line class="trigram-line" x1="20" y1="20" x2="50" y2="20"/><line class="trigram-line" x1="20" y1="28" x2="50" y2="28"/><line class="trigram-line" x1="20" y1="36" x2="50" y2="36"/>
+      <line class="trigram-line" x1="70" y1="20" x2="100" y2="20"/><line class="trigram-line" x1="70" y1="28" x2="100" y2="28"/><line class="trigram-line" x1="77" y1="36" x2="93" y2="36"/>
+      <line class="trigram-line" x1="120" y1="20" x2="120" y2="50"/><line class="trigram-line" x1="120" y1="58" x2="120" y2="58"/><line class="trigram-line" x1="120" y1="66" x2="120" y2="96"/>
+      <line class="trigram-line" x1="20" y1="120" x2="50" y2="120"/><line class="trigram-line" x1="20" y1="112" x2="50" y2="112"/><line class="trigram-line" x1="20" y1="104" x2="50" y2="104"/>
+      <line class="trigram-line" x1="70" y1="120" x2="100" y2="120"/><line class="trigram-line" x1="77" y1="112" x2="93" y2="112"/><line class="trigram-line" x1="70" y1="104" x2="100" y2="104"/>
+      <line class="trigram-line" x1="120" y1="116" x2="120" y2="116"/><line class="trigram-line" x1="120" y1="108" x2="120" y2="138"/><line class="trigram-line" x1="120" y1="100" x2="120" y2="100"/>
+      <line class="trigram-line" x1="20" y1="20" x2="20" y2="50"/><line class="trigram-line" x1="28" y1="70" x2="28" y2="96"/><line class="trigram-line" x1="36" y1="66" x2="36" y2="66"/>
+      <line class="trigram-line" x1="20" y1="120" x2="20" y2="120"/><line class="trigram-line" x1="20" y1="108" x2="20" y2="138"/><line class="trigram-line" x1="20" y1="100" x2="20" y2="100"/>
+      <circle cx="70" cy="70" r="68" fill="none" stroke="rgba(180,140,60,0.4)" stroke-width="1.5"/>
+    </svg>
+    <div class="taiji"></div>
+  </div>
+  <div class="mirror-label">八 卦 破 阵</div>
+</div>
+
+<!-- 铜钱摇卦动画（增强版） -->
+<div class="coin-anim-overlay" id="coinAnimOverlay">
+  <div class="coin" id="coin1" style="left:40%;top:20%">🪙</div>
+  <div class="coin" id="coin2" style="left:50%;top:20%">🪙</div>
+  <div class="coin" id="coin3" style="left:60%;top:20%">🪙</div>
+  <div class="hex-line-builder" id="hexLineBuilder" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+</div>
+
+<!-- 问题输入弹窗 -->
+<div class="question-overlay" id="questionOverlay">
+  <div class="question-panel">
+    <div style="font-size:22px;letter-spacing:4px;color:var(--gold-light);margin-bottom:4px">叩 问 天 机</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">以「<span id="qWeaponName"></span>」破阵，心中所问何事？</div>
+    <div class="hint">默念心中所惑，诚心叩问，卦象自显</div>
+    <textarea id="questionInput" placeholder="例如：今天心情如何？这件事进展会怎样？..." maxlength="50"></textarea>
+    <button class="modal-btn" onclick="game.confirmQuestion()" style="width:100%;margin-bottom:6px">⚔️ 开 始 破 阵</button>
+    <button class="skip-btn" onclick="game.confirmQuestion(true)">不问具体事，直接起卦</button>
+  </div>
+</div>
+
+<!-- 每日任务弹窗 -->
+<div class="modal-overlay" id="taskOverlay">
+  <div class="modal-panel">
+    <div style="font-size:20px;letter-spacing:4px;color:var(--gold-light);margin-bottom:12px">📋 每 日 修 行</div>
+    <div class="task-list" id="taskList"></div>
+    <button class="modal-btn" onclick="game.closeDailyTasks()">关 闭</button>
+  </div>
+</div>
+
+<!-- 八卦知识库弹窗 -->
+<div class="modal-overlay" id="knowledgeOverlay">
+  <div class="modal-panel">
+    <div style="font-size:20px;letter-spacing:4px;color:var(--gold-light);margin-bottom:8px">📖 六 十 四 卦</div>
+    <input class="knowledge-search" id="knowledgeSearch" placeholder="搜索卦名..." oninput="game.searchKnowledge()">
+    <div class="knowledge-grid" id="knowledgeGrid"></div>
+    <div id="knowledgeDetail" style="display:none;text-align:left;padding:10px"></div>
+    <button class="modal-btn" onclick="game.closeKnowledge()" style="margin-top:8px">关 闭</button>
+  </div>
+</div>
+
+<!-- 兵器谱 -->
+<div class="arsenal" id="arsenal">
+  <div class="tier">
+    <div class="tier-label king">王 者</div>
+    <div class="weapons-row">
+      <div class="weapon-card locked" data-weapon="dragon-blade" data-tier="king" data-rate="40">
+        <div class="weapon-icon">🗡️</div><div class="weapon-name">屠龙刀</div>
+        <div class="weapon-rate">破阵率 40%</div><div class="weapon-lv">Lv.1</div>
+        <button class="upgrade-btn" onclick="event.stopPropagation();game.upgradeWeapon('dragon-blade')">强化</button>
+      </div>
+      <div class="weapon-card locked" data-weapon="heaven-sword" data-tier="king" data-rate="35">
+        <div class="weapon-icon">⚔️</div><div class="weapon-name">倚天剑</div>
+        <div class="weapon-rate">破阵率 35%</div><div class="weapon-lv">Lv.1</div>
+        <button class="upgrade-btn" onclick="event.stopPropagation();game.upgradeWeapon('heaven-sword')">强化</button>
+      </div>
+    </div>
+  </div>
+  <div class="tier">
+    <div class="tier-label silver">白 银</div>
+    <div class="weapons-row">
+      <div class="weapon-card locked" data-weapon="iron-sword" data-tier="silver" data-rate="60">
+        <div class="weapon-icon">🔪</div><div class="weapon-name">精铁长剑</div>
+        <div class="weapon-rate">破阵率 60%</div><div class="weapon-lv">Lv.1</div>
+        <button class="upgrade-btn" onclick="event.stopPropagation();game.upgradeWeapon('iron-sword')">强化</button>
+      </div>
+      <div class="weapon-card locked" data-weapon="willow-dagger" data-tier="silver" data-rate="55">
+        <div class="weapon-icon">🏹</div><div class="weapon-name">柳叶飞刀</div>
+        <div class="weapon-rate">破阵率 55%</div><div class="weapon-lv">Lv.1</div>
+        <button class="upgrade-btn" onclick="event.stopPropagation();game.upgradeWeapon('willow-dagger')">强化</button>
+      </div>
+    </div>
+  </div>
+  <div class="tier">
+    <div class="tier-label bronze">青 铜</div>
+    <div class="weapons-row">
+      <div class="weapon-card" data-weapon="express-knife" data-tier="bronze" data-rate="85">
+        <div class="weapon-icon">✂️</div><div class="weapon-name">快递小刀</div>
+        <div class="weapon-rate">破阵率 85%</div><div class="weapon-lv">Lv.1</div>
+        <button class="upgrade-btn" onclick="event.stopPropagation();game.upgradeWeapon('express-knife')">强化</button>
+      </div>
+      <div class="weapon-card" data-weapon="rusty-cleaver" data-tier="bronze" data-rate="75">
+        <div class="weapon-icon">🪓</div><div class="weapon-name">生锈菜刀</div>
+        <div class="weapon-rate">破阵率 75%</div><div class="weapon-lv">Lv.1</div>
+        <button class="upgrade-btn" onclick="event.stopPropagation();game.upgradeWeapon('rusty-cleaver')">强化</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drag-ghost" id="dragGhost" style="display:none;"></div>
+
+<!-- 解卦加载提示 -->
+<div class="loading-overlay" id="loadingOverlay" style="display:none">
+  <div class="loading-content">
+    <div class="loading-spinner">☯️</div>
+    <div class="loading-text">正在解卦，请等待...</div>
+    <div class="loading-dots">
+      <span>.</span><span>.</span><span>.</span>
+    </div>
+  </div>
+</div>
+
+<!-- 卦象结果弹窗 -->
+<div class="modal-overlay" id="resultOverlay">
+  <div class="modal-panel" id="resultPanel">
+    <div style="font-size:36px;margin-bottom:6px" id="resultEmoji">☯️</div>
+    <div style="font-size:20px;letter-spacing:4px;margin-bottom:4px;color:var(--gold-light)" id="resultTitle">破 阵 成 功</div>
+    <div class="hexagram-display" id="hexagramDisplay"></div>
+    <div class="lines-display" id="linesDisplay"></div>
+    <div class="judgment-text" id="judgmentText"></div>
+    <div class="ai-judgment" id="aiJudgment" style="display:none">
+      <div class="ai-label">🤖 AI 解卦</div>
+      <div id="aiJudgmentText"></div>
+    </div>
+    <div style="margin-top:12px;padding:8px;background:rgba(0,0,0,0.3);border-radius:6px;border:1px dashed rgba(180,140,60,0.3);font-size:10px;color:var(--text-dim);line-height:1.6;text-align:center">
+      ⚠️ 本内容仅供游戏娱乐和传统文化科普，不构成任何人生决策参考，请勿封建迷信。
+    </div>
+    <button class="modal-btn" onclick="game.closeResult()">关 闭</button>
+  </div>
+</div>
+
+<!-- 失败弹窗 -->
+<div class="modal-overlay" id="failOverlay">
+  <div class="modal-panel" style="border-color:rgba(200,60,40,0.5);box-shadow:0 0 60px rgba(200,60,40,0.2)">
+    <div style="font-size:36px;margin-bottom:6px">⚠️</div>
+    <div style="font-size:20px;letter-spacing:4px;margin-bottom:8px;color:#e74c3c">功 力 不 足</div>
+    <div style="font-size:14px;color:var(--text);line-height:1.8;margin-bottom:6px" id="failWeaponName"></div>
+    <div style="font-size:12px;color:var(--text-dim);font-style:italic;margin-bottom:16px">
+      今日天机混沌，阁下功力尚浅，强行破阵恐伤和气。<br>请明日再来，或换一把凡铁（快递小刀）试试。
+    </div>
+    <button class="modal-btn" style="border-color:rgba(200,60,40,0.5);color:#e74c3c" onclick="game.closeFail()">继 续</button>
+  </div>
+</div>
+
+<!-- 成就弹窗 -->
+<div class="modal-overlay" id="achOverlay">
+  <div class="modal-panel">
+    <div style="font-size:20px;letter-spacing:4px;color:var(--gold-light);margin-bottom:12px">🏆 修 道 成 就</div>
+    <div class="ach-list" id="achList"></div>
+    <button class="modal-btn" onclick="game.closeAchievements()">关 闭</button>
+  </div>
+</div>
+
+<!-- 历史记录弹窗 -->
+<div class="modal-overlay" id="histOverlay">
+  <div class="modal-panel" style="max-width:450px">
+    <div style="font-size:20px;letter-spacing:4px;color:var(--gold-light);margin-bottom:12px">📜 破 阵 记 录</div>
+    <div id="histList" style="max-height:40vh;overflow-y:auto;"></div>
+    <div id="histDetail" style="display:none;max-height:40vh;overflow-y:auto;padding:10px;background:rgba(0,0,0,0.3);border-radius:8px;margin-top:10px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="modal-btn" id="histBackBtn" style="display:none;flex:1" onclick="game.showHistoryList()">返 回</button>
+      <button class="modal-btn" style="flex:1" onclick="game.closeHistory()">关 闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== API 配置 ====================
+const API_BASE = window.location.protocol + '//' + window.location.hostname + ':8000';
+
+// ==================== 音效引擎 ====================
+class AudioEngine {
+  constructor() { this.ctx = null; this.ambientNode = null; this.initialized = false; }
+  init() { if(this.initialized)return; try{this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.initialized=true;}catch(e){} }
+  resume() { if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume(); }
+  startAmbient() {
+    if(!this.ctx||this.ambientNode)return;
+    const osc=this.ctx.createOscillator(),gain=this.ctx.createGain(),filter=this.ctx.createBiquadFilter();
+    osc.type='sine';osc.frequency.value=55;filter.type='lowpass';filter.frequency.value=200;gain.gain.value=0.04;
+    const lfo=this.ctx.createOscillator(),lfoGain=this.ctx.createGain();
+    lfo.frequency.value=0.3;lfoGain.gain.value=3;lfo.connect(lfoGain);lfoGain.connect(osc.frequency);lfo.start();
+    osc.connect(filter);filter.connect(gain);gain.connect(this.ctx.destination);osc.start();
+    this.ambientNode=osc;
+  }
+  playSwordHum() {
+    if(!this.ctx)return;const now=this.ctx.currentTime;
+    const osc=this.ctx.createOscillator(),gain=this.ctx.createGain(),filter=this.ctx.createBiquadFilter();
+    osc.type='sawtooth';osc.frequency.setValueAtTime(800,now);osc.frequency.exponentialRampToValueAtTime(2000,now+.08);osc.frequency.exponentialRampToValueAtTime(400,now+.2);
+    filter.type='bandpass';filter.frequency.value=1500;filter.Q.value=3;
+    gain.gain.setValueAtTime(.08,now);gain.gain.exponentialRampToValueAtTime(.001,now+.25);
+    osc.connect(filter);filter.connect(gain);gain.connect(this.ctx.destination);osc.start(now);osc.stop(now+.3);
+  }
+  playImpact(success) {
+    if(!this.ctx)return;const now=this.ctx.currentTime;
+    const osc=this.ctx.createOscillator(),gain=this.ctx.createGain(),filter=this.ctx.createBiquadFilter();
+    osc.type='triangle';const bf=success?1200:600;
+    osc.frequency.setValueAtTime(bf,now);osc.frequency.exponentialRampToValueAtTime(success?2000:300,now+.15);
+    filter.type='lowpass';filter.frequency.setValueAtTime(4000,now);filter.frequency.exponentialRampToValueAtTime(500,now+.4);
+    gain.gain.setValueAtTime(.25,now);gain.gain.exponentialRampToValueAtTime(.001,now+.5);
+    osc.connect(filter);filter.connect(gain);gain.connect(this.ctx.destination);osc.start(now);osc.stop(now+.55);
+    const osc2=this.ctx.createOscillator(),gain2=this.ctx.createGain();
+    osc2.type='sine';osc2.frequency.value=bf*1.5;gain2.gain.setValueAtTime(.1,now);gain2.gain.exponentialRampToValueAtTime(.001,now+.3);
+    osc2.connect(gain2);gain2.connect(this.ctx.destination);osc2.start(now);osc2.stop(now+.35);
+  }
+  playShatter() {
+    if(!this.ctx)return;const now=this.ctx.currentTime;
+    const bs=this.ctx.sampleRate*.5,buffer=this.ctx.createBuffer(1,bs,this.ctx.sampleRate),data=buffer.getChannelData(0);
+    for(let i=0;i<bs;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/bs,3);
+    const noise=this.ctx.createBufferSource();noise.buffer=buffer;
+    const gain=this.ctx.createGain(),filter=this.ctx.createBiquadFilter();
+    filter.type='highpass';filter.frequency.value=2000;
+    gain.gain.setValueAtTime(.2,now);gain.gain.exponentialRampToValueAtTime(.001,now+.4);
+    noise.connect(filter);filter.connect(gain);gain.connect(this.ctx.destination);noise.start(now);
+  }
+  playSuccess() {
+    if(!this.ctx)return;const now=this.ctx.currentTime;
+    [523,659,784,1047].forEach((f,i)=>{const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type='sine';o.frequency.value=f;const t=now+i*.12;g.gain.setValueAtTime(.08,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);o.connect(g);g.connect(this.ctx.destination);o.start(t);o.stop(t+.35);});
+  }
+  playFailure() {
+    if(!this.ctx)return;const now=this.ctx.currentTime;
+    const osc=this.ctx.createOscillator(),gain=this.ctx.createGain();
+    osc.type='square';osc.frequency.setValueAtTime(300,now);osc.frequency.exponentialRampToValueAtTime(80,now+.5);
+    gain.gain.setValueAtTime(.06,now);gain.gain.exponentialRampToValueAtTime(.001,now+.5);
+    osc.connect(gain);gain.connect(this.ctx.destination);osc.start(now);osc.stop(now+.55);
+  }
+  playCoinDrop() {
+    if(!this.ctx)return;const now=this.ctx.currentTime;
+    const osc=this.ctx.createOscillator(),gain=this.ctx.createGain();
+    osc.type='sine';osc.frequency.setValueAtTime(800,now);osc.frequency.exponentialRampToValueAtTime(200,now+.2);
+    gain.gain.setValueAtTime(.12,now);gain.gain.exponentialRampToValueAtTime(.001,now+.25);
+    osc.connect(gain);gain.connect(this.ctx.destination);osc.start(now);osc.stop(now+.3);
+  }
+}
+
+// ==================== 粒子系统 ====================
+class ParticleSystem {
+  constructor(canvas) { this.canvas=canvas;this.ctx=canvas.getContext('2d');this.particles=[];this.running=false;this.resize();window.addEventListener('resize',()=>this.resize()); }
+  resize() { this.canvas.width=window.innerWidth*devicePixelRatio;this.canvas.height=window.innerHeight*devicePixelRatio;this.canvas.style.width=window.innerWidth+'px';this.canvas.style.height=window.innerHeight+'px'; }
+  start() { if(this.running)return;this.running=true;this.loop(); }
+  loop() { if(!this.running)return;this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);this.particles=this.particles.filter(p=>{p.update();p.draw(this.ctx);return p.life>0;});requestAnimationFrame(()=>this.loop()); }
+  emitGold(x,y,c=120) { for(let i=0;i<c;i++)this.particles.push(new GoldParticle(x,y)); }
+  emitCrack(x,y,c=80) { for(let i=0;i<c;i++)this.particles.push(new CrackParticle(x,y)); }
+  emitShard(x,y,c=150) { for(let i=0;i<c;i++)this.particles.push(new ShardParticle(x,y)); }
+  clear() { this.particles=[]; }
+}
+class Particle { constructor(x,y){this.x=x*devicePixelRatio;this.y=y*devicePixelRatio;this.life=1;this.decay=.008+Math.random()*.025;} update(){this.life-=this.decay;} }
+class GoldParticle extends Particle {
+  constructor(x,y){super(x,y);const a=Math.random()*Math.PI*2,s=2+Math.random()*8;this.vx=Math.cos(a)*s;this.vy=Math.sin(a)*s;this.size=1.5+Math.random()*4;this.hue=35+Math.random()*20;this.gravity=.05;}
+  update(){super.update();this.x+=this.vx;this.vy+=this.gravity;this.y+=this.vy;}
+  draw(ctx){const a=this.life*.8;ctx.save();ctx.globalAlpha=a;ctx.shadowColor=`hsla(${this.hue},80%,60%,${a})`;ctx.shadowBlur=this.size*3;ctx.fillStyle=`hsla(${this.hue},80%,65%,${a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.size*this.life,0,Math.PI*2);ctx.fill();ctx.restore();}
+}
+class CrackParticle extends Particle {
+  constructor(x,y){super(x,y);const a=Math.random()*Math.PI*2,s=1+Math.random()*5;this.vx=Math.cos(a)*s;this.vy=Math.sin(a)*s;this.len=3+Math.random()*12;this.angle2=Math.random()*Math.PI;this.hue=Math.random()<.5?0:15;this.decay=.01+Math.random()*.03;}
+  update(){super.update();this.x+=this.vx;this.y+=this.vy;}
+  draw(ctx){const a=this.life*.7;ctx.save();ctx.globalAlpha=a;ctx.strokeStyle=`hsla(${this.hue},90%,45%,${a})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x+Math.cos(this.angle2)*this.len*this.life,this.y+Math.sin(this.angle2)*this.len*this.life);ctx.stroke();ctx.restore();}
+}
+class ShardParticle extends Particle {
+  constructor(x,y){super(x,y);const a=Math.random()*Math.PI*2,s=3+Math.random()*12;this.vx=Math.cos(a)*s;this.vy=Math.sin(a)*s-3;this.size=4+Math.random()*10;this.rotation=Math.random()*Math.PI*2;this.rotSpeed=(Math.random()-.5)*.3;this.gravity=.15;this.color=Math.random()<.5?`hsla(40,60%,${20+Math.random()*30}%,.8)`:`hsla(35,40%,${15+Math.random()*25}%,.7)`;}
+  update(){super.update();this.x+=this.vx;this.vy+=this.gravity;this.y+=this.vy;this.rotation+=this.rotSpeed;}
+  draw(ctx){const a=this.life*.7;ctx.save();ctx.globalAlpha=a;ctx.translate(this.x,this.y);ctx.rotate(this.rotation);ctx.fillStyle=this.color;ctx.fillRect(-this.size/2*this.life,-this.size/2*this.life,this.size*this.life,this.size*this.life*.6);ctx.restore();}
+}
+
+// ==================== 主游戏 ====================
+class Game {
+  constructor() {
+    this.audio = new AudioEngine();
+    this.ps = new ParticleSystem(document.getElementById('particleCanvas'));
+    this.apiReady = false;
+    this.userId = this.getUserId();
+    this.userData = null;
+    this.weaponData = null;
+    this.isDragging = false;
+    this.dragWeapon = null;
+    this.isProcessing = false;
+    this.dailyCount = 0;
+    this.pendingWeapon = null;
+    this.pendingCoords = null;
+    this.fortuneData = null;
+    this.hexagramCache = null;
+
+    this.weaponMeta = {
+      'dragon-blade':{name:'屠龙刀',tier:'king',rate:40,icon:'🗡️',hint:'道行8级 或 破阵30次'},
+      'heaven-sword':{name:'倚天剑',tier:'king',rate:35,icon:'⚔️',hint:'道行10级 或 破阵50次'},
+      'iron-sword':{name:'精铁长剑',tier:'silver',rate:60,icon:'🔪',hint:'道行3级 或 破阵5次'},
+      'willow-dagger':{name:'柳叶飞刀',tier:'silver',rate:55,icon:'🏹',hint:'道行5级 或 破阵10次'},
+      'express-knife':{name:'快递小刀',tier:'bronze',rate:85,icon:'✂️',hint:''},
+      'rusty-cleaver':{name:'生锈菜刀',tier:'bronze',rate:75,icon:'🪓',hint:''},
+    };
+    this.init();
+  }
+
+  getUserId() {
+    let id = localStorage.getItem('yj_user_id');
+    if(!id){id='user_'+Math.random().toString(36).substr(2,9)+Date.now().toString(36);localStorage.setItem('yj_user_id',id);}
+    return id;
+  }
+
+  async init() {
+    this.ps.start();
+    this.bindEvents();
+    document.addEventListener('click',()=>{this.audio.init();this.audio.startAmbient();},{once:true});
+    try {
+      const resp = await fetch(`${API_BASE}/api/user/init`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:this.userId})});
+      if(resp.ok){
+        const data=await resp.json();
+        this.userData=data.user;this.weaponData=data.weapons;this.dailyCount=data.daily_count;this.apiReady=true;
+        this.updateUI();this.updateWeaponUI();
+        this.fetchFortune();this.fetchUnlockStatus();
+      }
+    }catch(e){console.warn('后端未连接，使用离线模式');this.apiReady=false;this.userData={level:1,spirit:10};this.weaponData={'express-knife':{unlocked:true,level:1},'rusty-cleaver':{unlocked:true,level:1}};this.updateUI();this.updateWeaponUI();}
+  }
+
+  async fetchFortune(){
+    if(!this.apiReady)return;
+    try{
+      const resp=await fetch(`${API_BASE}/api/fortune/${this.userId}`);
+      if(resp.ok){this.fortuneData=await resp.json();this.showFortuneBar();}
+    }catch(e){}
+  }
+
+  async fetchUnlockStatus(){
+    if(!this.apiReady)return;
+    try{
+      const resp=await fetch(`${API_BASE}/api/weapon-unlock/${this.userId}`);
+      if(resp.ok){this.unlockStatus=await resp.json();this.updateWeaponUI();}
+    }catch(e){}
+  }
+
+  showFortuneBar(){
+    if(!this.fortuneData)return;
+    const bar=document.getElementById('fortuneBar'),val=document.getElementById('fortuneVal'),adv=document.getElementById('fortuneAdvice');
+    bar.style.display='flex';
+    const f=this.fortuneData.fortune;
+    // 映射运势等级为新名称
+    const fortuneMap = {'大吉':'上佳','吉':'上佳','小吉':'尚可','平':'尚可','小凶':'稍差','凶':'稍差'};
+    const displayName = fortuneMap[f] || f;
+    let cls='';if(f.includes('大吉')||f==='吉')cls='daji';else if(f==='小吉'||f==='平')cls='ping';else cls='xiong';
+    val.textContent=displayName;val.className='fortune-val '+cls;
+    adv.textContent=`· ${this.fortuneData.lucky_color}色 · ${this.fortuneData.lucky_direction}方 · ${this.fortuneData.lucky_number}`;
+  }
+
+  bindEvents() {
+    document.addEventListener('mousedown',e=>this.onPointerDown(e.clientX,e.clientY,e.target));
+    document.addEventListener('mousemove',e=>this.onPointerMove(e.clientX,e.clientY));
+    document.addEventListener('mouseup',e=>this.onPointerUp(e.clientX,e.clientY));
+    document.addEventListener('touchstart',e=>{const t=e.touches[0];this.onPointerDown(t.clientX,t.clientY,e.target);},{passive:false});
+    document.addEventListener('touchmove',e=>{const t=e.touches[0];this.onPointerMove(t.clientX,t.clientY);if(this.isDragging)e.preventDefault();},{passive:false});
+    document.addEventListener('touchend',e=>{const t=e.changedTouches[0];this.onPointerUp(t.clientX,t.clientY);});
+  }
+
+  updateUI() {
+    if(!this.userData)return;
+    document.getElementById('levelDisplay').textContent=`道行 ${this.userData.level} 级`;
+    document.getElementById('spiritDisplay').textContent=`灵力 ${this.userData.spirit}`;
+    const signinBtn=document.getElementById('signinBtn');
+    if(this.userData.signin_date===new Date().toISOString().slice(0,10)){signinBtn.classList.add('done');signinBtn.textContent='已签到';}
+  }
+
+  updateWeaponUI() {
+    document.querySelectorAll('.weapon-card').forEach(card=>{
+      const wid=card.dataset.weapon;
+      const wd=this.weaponData?.[wid];
+      const meta=this.weaponMeta[wid];
+      if(wd&&wd.unlocked){
+        card.classList.remove('locked');
+        card.removeAttribute('data-hint');
+        const lv=card.querySelector('.weapon-lv');if(lv)lv.textContent=`Lv.${wd.level}`;
+        const baseRate=parseInt(card.dataset.rate);
+        const newRate=Math.min(baseRate+(wd.level-1)*3,95);
+        const rateEl=card.querySelector('.weapon-rate');if(rateEl)rateEl.textContent=`破阵率 ${newRate}%`;
+      }else{
+        card.classList.add('locked');
+        // 显示解锁提示
+        if(this.unlockStatus&&this.unlockStatus[wid]){
+          const us=this.unlockStatus[wid];
+          const pctLv=Math.min(100,Math.round(us.current_level/us.req_level*100));
+          const pctDiv=Math.min(100,Math.round(us.current_divs/us.req_divs*100));
+          card.setAttribute('data-hint',`🔒 ${meta.hint} (${Math.max(pctLv,pctDiv)}%)`);
+        }else if(meta.hint){
+          card.setAttribute('data-hint',`🔒 ${meta.hint}`);
+        }
+      }
+    });
+  }
+
+  async signIn() {
+    this.audio.resume();
+    if(!this.apiReady){this.showToast('后端未连接，签到不可用');return;}
+    try{
+      const resp=await fetch(`${API_BASE}/api/signin`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:this.userId})});
+      const data=await resp.json();
+      if(data.success){this.showToast(`✅ 签到成功！+${data.spirit_gain} 灵力 · 连续${data.streak}天`);this.userData.spirit=data.spirit_total;this.userData.signin_date=new Date().toISOString().slice(0,10);this.userData.signin_streak=data.streak;this.updateUI();}
+      else{this.showToast(data.message||'今日已签到');}
+    }catch(e){this.showToast('签到失败，请检查后端服务');}
+  }
+
+  async upgradeWeapon(weaponId) {
+    this.audio.resume();
+    if(!this.apiReady){this.showToast('后端未连接');return;}
+    try{
+      const resp=await fetch(`${API_BASE}/api/weapon/upgrade`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:this.userId,weapon_id:weaponId})});
+      const data=await resp.json();
+      if(resp.ok){this.showToast(`⚒️ ${this.weaponMeta[weaponId].name} 强化至 Lv.${data.new_level}！`);this.weaponData[weaponId].level=data.new_level;this.userData.spirit=data.spirit_remaining;this.updateUI();this.updateWeaponUI();}
+      else{this.showToast(data.detail||'强化失败');}
+    }catch(e){this.showToast('强化失败');}
+  }
+
+  async showAchievements() {
+    this.audio.resume();
+    const overlay=document.getElementById('achOverlay'),list=document.getElementById('achList');
+    if(!this.apiReady){list.innerHTML='<div style="color:var(--text-dim)">后端未连接</div>';}
+    else{
+      try{
+        const resp=await fetch(`${API_BASE}/api/achievements/${this.userId}`);
+        const unlocked=await resp.json();
+        const unlockedIds=new Set(unlocked.map(a=>a.ach_id));
+        const achDefs={'first_break':{name:'初破阵法',desc:'首次成功破阵',icon:'🔮'},'ten_divinations':{name:'问道十次',desc:'累计完成10次起卦',icon:'📿'},'fifty_divinations':{name:'半百问道',desc:'累计完成50次起卦',icon:'🔔'},'hundred_divinations':{name:'百卦通玄',desc:'累计完成100次起卦',icon:'👑'},'all_bronze':{name:'凡铁宗师',desc:'解锁全部青铜兵器',icon:'🥉'},'all_silver':{name:'银刃名家',desc:'解锁全部白银兵器',icon:'🥈'},'all_king':{name:'王者之兵',desc:'解锁全部王者兵器',icon:'🥇'},'streak_7':{name:'七日问道',desc:'连续签到7天',icon:'🔥'},'level_5':{name:'初窥门径',desc:'道行达到5级',icon:'⭐'},'level_10':{name:'登堂入室',desc:'道行达到10级',icon:'🌟'}};
+        list.innerHTML=Object.entries(achDefs).map(([id,ach])=>{const u=unlockedIds.has(id);return`<div class="ach-item ${u?'unlocked':'locked'}"><div class="ach-icon">${u?ach.icon:'🔒'}</div><div class="ach-info"><div class="ach-name">${ach.name}</div><div class="ach-desc">${ach.desc}</div></div>${u?'<div style="color:var(--gold-light);font-size:11px">已达成</div>':''}</div>`;}).join('');
+      }catch(e){list.innerHTML='<div style="color:var(--text-dim)">加载失败</div>';}
+    }
+    overlay.classList.add('active');
+  }
+
+  historyRecords = [];  // 存储历史记录数据
+
+  async showHistory() {
+    this.audio.resume();
+    this.showHistoryList();
+  }
+
+  async showHistoryList() {
+    const overlay=document.getElementById('histOverlay'),list=document.getElementById('histList'),detail=document.getElementById('histDetail'),backBtn=document.getElementById('histBackBtn');
+    list.style.display='block';
+    detail.style.display='none';
+    backBtn.style.display='none';
+    if(!this.apiReady){list.innerHTML='<div style="color:var(--text-dim);padding:20px">后端未连接</div>';}
+    else{
+      try{
+        const resp=await fetch(`${API_BASE}/api/history/${this.userId}?limit=15`);
+        const rows=await resp.json();
+        this.historyRecords = rows;  // 保存记录
+        if(rows.length===0){list.innerHTML='<div style="color:var(--text-dim);padding:20px">暂无破阵记录</div>';}
+        else{list.innerHTML=rows.map((r,i)=>{const d=new Date(r.created_at);const ds=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;return`<div class="hist-item" data-index="${i}" onclick="game.showHistoryDetail(${i})" style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;color:var(--text);text-align:left;cursor:pointer;transition:background .2s;border-radius:4px;margin:2px 0"><div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text-dim)">${ds}</span><span style="color:var(--gold-light)">${r.hexagram_origin?'第'+r.hexagram_origin+'卦':''}</span></div>${r.question?'<div style="color:var(--text-dim);margin-top:4px;font-size:11px">问：'+r.question+'</div>':''}</div>`;}).join('');}
+      }catch(e){list.innerHTML='<div style="color:var(--text-dim)">加载失败</div>';}
+    }
+    overlay.classList.add('active');
+  }
+
+  async showHistoryDetail(index) {
+    const r = this.historyRecords[index];
+    if(!r) return;
+    const list=document.getElementById('histList'),detail=document.getElementById('histDetail'),backBtn=document.getElementById('histBackBtn');
+    list.style.display='none';
+    detail.style.display='block';
+    backBtn.style.display='block';
+
+    const d=new Date(r.created_at);
+    const ds=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+
+    let html = `<div style="text-align:center;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text-dim)">${ds}</div>
+      ${r.question?`<div style="font-size:12px;color:var(--text);margin-top:6px;font-style:italic">问：「${r.question}」</div>`:''}
+    </div>`;
+
+    // 获取卦象信息（从后端获取）
+    let origin = null, changed = null;
+    if(r.hexagram_origin){
+      try{
+        const resp = await fetch(`${API_BASE}/api/hexagram/${r.hexagram_origin}`);
+        if(resp.ok) origin = await resp.json();
+      }catch(e){}
+    }
+    if(r.hexagram_changed){
+      try{
+        const resp = await fetch(`${API_BASE}/api/hexagram/${r.hexagram_changed}`);
+        if(resp.ok) changed = await resp.json();
+      }catch(e){}
+    }
+
+    // 卦象显示
+    html += `<div class="hexagram-display" style="margin:10px 0">`;
+    if(origin){
+      html += `<div class="hex-box"><div class="hex-symbol">${origin.symbol}</div><div style="font-size:11px;color:var(--gold-light)">${origin.name}</div><div style="font-size:10px;color:var(--text-dim)">本卦</div></div>`;
+    }else if(r.hexagram_origin){
+      html += `<div class="hex-box"><div class="hex-symbol">?</div><div style="font-size:11px;color:var(--gold-light)">第${r.hexagram_origin}卦</div><div style="font-size:10px;color:var(--text-dim)">本卦</div></div>`;
+    }
+    if(changed){
+      html += `<div class="hex-box"><div class="hex-symbol">${changed.symbol}</div><div style="font-size:11px;color:var(--gold-light)">${changed.name}</div><div style="font-size:10px;color:var(--text-dim)">变卦</div></div>`;
+    }else if(r.hexagram_changed){
+      html += `<div class="hex-box"><div class="hex-symbol">?</div><div style="font-size:11px;color:var(--gold-light)">第${r.hexagram_changed}卦</div><div style="font-size:10px;color:var(--text-dim)">变卦</div></div>`;
+    }
+    html += `</div>`;
+
+    // 动爻
+    if(r.changing_lines){
+      html += `<div style="font-size:12px;color:var(--text);margin:8px 0">动爻：${r.changing_lines}</div>`;
+    }
+
+    // 卦辞大象
+    if(origin){
+      html += `<div class="judgment-text" style="margin:10px 0"><strong>卦辞：</strong>${origin.judgment}<br><strong>大象：</strong>${origin.image}</div>`;
+    }
+
+    // AI解读
+    if(r.judgment){
+      let formatted = r.judgment
+        // 先处理换行符
+        .replace(/\n\n+/g,'</p><p class="ai-paragraph">')
+        .replace(/\n/g,'<br>')
+        // 处理章节标题
+        .replace(/一、\s*本卦详解[：:]/g,'</p><div class="ai-section"><strong>📖 本卦详解：</strong></div><div class="ai-content"><p class="ai-paragraph">')
+        .replace(/二、\s*互卦分析/g,'</p></div><div class="ai-section"><strong>🔗 互卦分析：</strong></div><div class="ai-content"><p class="ai-paragraph">')
+        .replace(/三、\s*针对「/g,'</p></div><div class="ai-section"><strong>🎯 针对「')
+        .replace(/」(断吉凶|析趋势)/g,'」析趋势：</strong></div><div class="ai-content"><p class="ai-paragraph">')
+        .replace(/四、\s*行动提点[：:]/g,'</p></div><div class="ai-section"><strong>💡 行动提点：</strong></div><div class="ai-content"><p class="ai-paragraph">')
+        // 处理列表项
+        .replace(/(\d+\.\s*)/g,'<br><span style="color:var(--gold-light)">$1</span>')
+        // 处理特殊符号
+        .replace(/✅/g,'<span class="ai-check">✅</span>')
+        .replace(/⚠️/g,'<span class="ai-warn">⚠️</span>')
+        .replace(/❌/g,'<span style="color:#ef4444">❌</span>')
+        // 清理多余的星号和特殊字符
+        .replace(/\*\*\*/g,'')
+        .replace(/\*\*/g,'');
+      // 确保以段落开头
+      if(!formatted.startsWith('<p')) formatted='<p class="ai-paragraph">'+formatted;
+      html += `<div class="ai-judgment"><div class="ai-label">🤖 AI 解卦</div>${formatted}</p></div></div>`;
+    }
+
+    // 声明
+    html += `<div style="margin-top:12px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;font-size:9px;color:var(--text-dim);text-align:center">⚠️ 仅供游戏娱乐和传统文化科普</div>`;
+
+    detail.innerHTML = html;
+  }
+
+  closeAchievements(){document.getElementById('achOverlay').classList.remove('active');}
+  closeHistory(){document.getElementById('histOverlay').classList.remove('active');}
+  closeResult(){document.getElementById('resultOverlay').classList.remove('active');}
+  closeFail(){document.getElementById('failOverlay').classList.remove('active');}
+
+  getMirrorCenter(){const rect=document.getElementById('mirror').getBoundingClientRect();return{x:rect.left+rect.width/2,y:rect.top+rect.height/2,r:rect.width/2};}
+  getClosestWeaponCard(el){let c=el;while(c){if(c.classList.contains('weapon-card'))return c;c=c.parentElement;}return null;}
+
+  onPointerDown(x,y,target){
+    if(this.isProcessing)return;
+    const card=this.getClosestWeaponCard(target);
+    if(!card)return;
+    const wid=card.dataset.weapon;
+    if(!this.weaponData?.[wid]?.unlocked){this.showToast('🔒 此兵器尚未开刃，请先使用凡铁破阵解锁');return;}
+    this.audio.resume();this.isDragging=true;this.dragWeapon={id:wid,card,...this.weaponMeta[wid]};
+    card.classList.add('dragging');
+    const gh=document.getElementById('dragGhost');gh.style.display='block';gh.textContent=this.dragWeapon.icon;gh.style.left=x+'px';gh.style.top=y+'px';
+    this.audio.playSwordHum();
+  }
+
+  onPointerMove(x,y){
+    if(this.isDragging){
+      const gh=document.getElementById('dragGhost');gh.style.left=x+'px';gh.style.top=y+'px';
+      const mc=this.getMirrorCenter();const m=document.getElementById('mirror');
+      if(Math.hypot(x-mc.x,y-mc.y)<mc.r+20)m.classList.add('highlight');else m.classList.remove('highlight');
+    }
+  }
+
+  onPointerUp(x,y){
+    if(!this.isDragging)return;
+    this.isDragging=false;document.getElementById('dragGhost').style.display='none';document.getElementById('mirror').classList.remove('highlight');
+    if(this.dragWeapon){
+      this.dragWeapon.card.classList.remove('dragging');
+      const mc=this.getMirrorCenter();
+      if(Math.hypot(x-mc.x,y-mc.y)<mc.r+30){
+        // 保存待处理信息，显示问题输入弹窗
+        this.pendingWeapon=this.dragWeapon;
+        this.pendingCoords={x:mc.x,y:mc.y};
+        this.showQuestionModal();
+      }
+    }
+    this.dragWeapon=null;
+  }
+
+  showQuestionModal(){
+    document.getElementById('qWeaponName').textContent=this.pendingWeapon.name;
+    document.getElementById('questionInput').value='';
+    document.getElementById('questionOverlay').classList.add('active');
+    setTimeout(()=>document.getElementById('questionInput').focus(),400);
+  }
+
+  confirmQuestion(skip=false){
+    const question=skip?'':document.getElementById('questionInput').value.trim();
+    document.getElementById('questionOverlay').classList.remove('active');
+    this.pendingWeapon.question=question;
+    this.processImpact(this.pendingCoords.x,this.pendingCoords.y);
+  }
+
+  async processImpact(mx,my){
+    if(this.isProcessing)return;this.isProcessing=true;
+    const weapon=this.pendingWeapon;
+    const question=weapon.question||'';
+    const wd=this.weaponData?.[weapon.id];
+    const baseRate=parseInt(weapon.rate);
+    const bonusRate=wd?(wd.level-1)*3:0;
+    const successRate=Math.min(baseRate+bonusRate,95)/100;
+    const success=Math.random()<successRate;
+    this.audio.playImpact(success);
+
+    if(success){
+      this.ps.emitGold(mx,my);setTimeout(()=>this.ps.emitShard(mx,my),100);this.audio.playShatter();setTimeout(()=>this.audio.playSuccess(),200);
+      const mirror=document.getElementById('mirror');mirror.classList.add('shatter');setTimeout(()=>{mirror.classList.remove('shatter');mirror.style.visibility='hidden';},400);
+      await this.playCoinAnimation();
+      setTimeout(()=>{mirror.style.visibility='visible';this.isProcessing=false;},200);
+
+      if(this.apiReady){
+        try{
+          // 显示解卦加载提示
+          document.getElementById('loadingOverlay').style.display='flex';
+          const resp=await fetch(`${API_BASE}/api/divination`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:this.userId,weapon_id:weapon.id,question})});
+          // 隐藏加载提示
+          document.getElementById('loadingOverlay').style.display='none';
+          if(resp.ok){
+            const data=await resp.json();
+            this.showHexagramResult(data,weapon);
+            const uResp=await fetch(`${API_BASE}/api/user/${this.userId}`);
+            if(uResp.ok){const uData=await uResp.json();this.userData=uData.user;this.weaponData=uData.weapons;this.dailyCount=uData.daily_count;this.updateUI();this.updateWeaponUI();}
+            if(data.level_up)this.showToast(`🎉 道行提升至 ${data.new_level} 级！`);
+            if(data.new_unlocks&&data.new_unlocks.length>0){
+              data.new_unlocks.forEach(u=>this.showToast(`✨ 新兵器开刃：「${u.name}」已解锁！`));
+              this.fetchUnlockStatus();
+            }
+            if(data.task_updates&&data.task_updates.length>0){
+              const completed=data.task_updates.filter(t=>t.completed);
+              if(completed.length>0)this.showToast(`📋 任务进度更新！${completed[0].name}已完成`);
+            }
+            return;
+          }else{
+            const err=await resp.json();
+            if(resp.status===400){this.showFailResult(weapon,err.detail||'灵力不足');return;}
+          }
+        }catch(e){
+          document.getElementById('loadingOverlay').style.display='none';
+          console.warn('API调用失败',e);
+        }
+      }
+      document.getElementById('loadingOverlay').style.display='none';
+      this.showOfflineResult(weapon);
+    }else{
+      this.ps.emitCrack(mx,my);this.audio.playFailure();
+      const mirror=document.getElementById('mirror');mirror.classList.add('shake');setTimeout(()=>mirror.classList.remove('shake'),500);
+      setTimeout(()=>{this.showFailResult(weapon);this.isProcessing=false;},600);
+    }
+  }
+
+  async playCoinAnimation(){
+    const overlay=document.getElementById('coinAnimOverlay');
+    const builder=document.getElementById('hexLineBuilder');
+    overlay.classList.add('active');
+    builder.innerHTML='';
+    const coinFaces=['🪙','🪙','🪙'];
+    const lineNames=['初爻','二爻','三爻','四爻','五爻','上爻'];
+
+    for(let round=0;round<6;round++){
+      await new Promise(r=>setTimeout(r,300));
+      const c1=document.getElementById('coin1'),c2=document.getElementById('coin2'),c3=document.getElementById('coin3');
+      [c1,c2,c3].forEach(c=>{c.style.animation='none';c.offsetHeight;c.style.animation='coinDrop .6s ease-in forwards';});
+      this.audio.playCoinDrop();
+      await new Promise(r=>setTimeout(r,400));
+
+      // 随机铜钱结果
+      const coins=[Math.random()>.5?'字':'背',Math.random()>.5?'字':'背',Math.random()>.5?'字':'背'];
+      const faceCount=coins.filter(c=>c==='背').length;
+      let yaoName,yaoClass,yaoSym;
+      if(faceCount===3){yaoName='老阳 ◉';yaoClass='lao';yaoSym='━━━';}
+      else if(faceCount===2){yaoName='少阳';yaoClass='';yaoSym='━━━';}
+      else if(faceCount===1){yaoName='少阴';yaoClass='';yaoSym='━ ━';}
+      else{yaoName='老阴 ◉';yaoClass='lao';yaoSym='━ ━';}
+
+      // 显示铜钱面
+      const facesDisplay=coins.map(c=>c==='背'?'⬤':'○').join('');
+
+      const row=document.createElement('div');
+      row.className='hl-row';
+      row.innerHTML=`<span class="hl-coins">${facesDisplay}</span><span class="hl-yao ${yaoClass}">${yaoSym}</span><span class="hl-result">${lineNames[round]} ${yaoName}</span>`;
+      builder.prepend(row);
+      setTimeout(()=>row.classList.add('show'),50);
+      await new Promise(r=>setTimeout(r,300));
+    }
+    await new Promise(r=>setTimeout(r,600));
+    overlay.classList.remove('active');
+    builder.innerHTML='';
+  }
+
+  showHexagramResult(data,weapon){
+    const hexDisplay=document.getElementById('hexagramDisplay'),linesDisplay=document.getElementById('linesDisplay'),judgmentText=document.getElementById('judgmentText'),aiJudgment=document.getElementById('aiJudgment'),aiJudgmentText=document.getElementById('aiJudgmentText');
+    document.getElementById('resultEmoji').textContent='☯️';document.getElementById('resultTitle').textContent='破 阵 成 功';
+    const o=data.hexagram_origin;
+    let hexHtml=`<div class="hex-box"><div class="hex-symbol">${o.symbol}</div><div class="hex-name">本卦 · ${o.name}</div></div>`;
+    if(data.hexagram_changed){const c=data.hexagram_changed;hexHtml+=`<div style="color:var(--text-dim);align-self:center">→</div><div class="hex-box changed"><div class="hex-symbol">${c.symbol}</div><div class="hex-name">变卦 · ${c.name}</div></div>`;}
+    if(data.hexagram_hugua){const h=data.hexagram_hugua;hexHtml+=`<div style="color:var(--text-dim);align-self:center">·</div><div class="hex-box"><div class="hex-symbol">${h.symbol}</div><div class="hex-name">互卦 · ${h.name}</div></div>`;}
+    hexDisplay.innerHTML=hexHtml;
+
+    if(data.changing_lines&&data.changing_lines.length>0){
+      linesDisplay.innerHTML='<div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">动爻变化</div>'+data.changing_lines.map(cl=>{const isYang=!cl.from.includes('阴');const sym=isYang?'━━━':'━ ━';return`<div class="line-row"><span class="line-symbol ${isYang?'yang':'yin'} changing">${sym}</span><span class="line-text">${cl.line_text}</span><span class="line-tag">${cl.name}爻 · ${cl.from}→${cl.to}</span></div>`;}).join('');
+    }else{
+      linesDisplay.innerHTML='<div style="font-size:12px;color:var(--text-dim);padding:8px">本卦无动爻，静卦</div>';
+    }
+
+    judgmentText.innerHTML=`<strong>卦辞：</strong>${o.judgment}<br><strong>大象：</strong>${o.image}`;
+    if(data.ai_judgment){
+      aiJudgment.style.display='block';
+      // 格式化AI回复，支持四部分结构
+      let formatted=data.ai_judgment
+        // 先处理换行符
+        .replace(/\n\n+/g,'</p><p class="ai-paragraph">')
+        .replace(/\n/g,'<br>')
+        // 处理章节标题
+        .replace(/一、\s*本卦详解[：:]/g,'</p><div class="ai-section"><strong>📖 本卦详解：</strong></div><div class="ai-content"><p class="ai-paragraph">')
+        .replace(/二、\s*互卦分析/g,'</p></div><div class="ai-section"><strong>🔗 互卦分析：</strong></div><div class="ai-content"><p class="ai-paragraph">')
+        .replace(/三、\s*针对「/g,'</p></div><div class="ai-section"><strong>🎯 针对「')
+        .replace(/」(断吉凶|析趋势)/g,'」析趋势：</strong></div><div class="ai-content"><p class="ai-paragraph">')
+        .replace(/四、\s*行动提点[：:]/g,'</p></div><div class="ai-section"><strong>💡 行动提点：</strong></div><div class="ai-content"><p class="ai-paragraph">')
+        // 处理列表项
+        .replace(/(\d+\.\s*)/g,'<br><span style="color:var(--gold-light)">$1</span>')
+        // 处理特殊符号
+        .replace(/✅/g,'<span class="ai-check">✅</span>')
+        .replace(/⚠️/g,'<span class="ai-warn">⚠️</span>')
+        .replace(/❌/g,'<span style="color:#ef4444">❌</span>')
+        // 清理多余的星号和特殊字符
+        .replace(/\*\*\*/g,'')
+        .replace(/\*\*/g,'');
+      // 确保以段落开头
+      if(!formatted.startsWith('<p')) formatted='<p class="ai-paragraph">'+formatted;
+      aiJudgmentText.innerHTML=formatted+'</p></div>';
+    }else{aiJudgment.style.display='none';}
+
+    if(weapon.question){
+      const qDiv=document.createElement('div');
+      qDiv.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:8px;font-style:italic';
+      qDiv.textContent=`问：「${weapon.question}」`;
+      document.getElementById('resultPanel').insertBefore(qDiv,document.getElementById('resultPanel').querySelector('.hexagram-display'));
+    }
+    document.getElementById('resultOverlay').classList.add('active');
+  }
+
+  showOfflineResult(weapon){
+    document.getElementById('resultEmoji').textContent='☯️';document.getElementById('resultTitle').textContent='破 阵 成 功';
+    document.getElementById('hexagramDisplay').innerHTML='<div class="hex-box"><div class="hex-symbol">☯️</div><div class="hex-name">天机显现</div></div>';
+    document.getElementById('linesDisplay').innerHTML='';
+    document.getElementById('judgmentText').innerHTML=`你以「${weapon.name}」击中八卦镜<br>卦阵已破，天机尽显<br><br><span style="color:var(--text-dim)">（连接后端以获得完整卦象解读）</span>`;
+    document.getElementById('aiJudgment').style.display='none';
+    document.getElementById('resultOverlay').classList.add('active');
+  }
+
+  showFailResult(weapon,extraMsg){
+    const fn=document.getElementById('failWeaponName');
+    fn.innerHTML=`「${weapon.name}」被八卦镜弹开<br>镜面震荡，无法窥探天机`;
+    if(extraMsg)fn.innerHTML+=`<br><span style="color:#e74c3c">${extraMsg}</span>`;
+    document.getElementById('failOverlay').classList.add('active');
+  }
+
+  async checkNewUnlocks(){
+    if(!this.apiReady)return;
+    try{const resp=await fetch(`${API_BASE}/api/user/${this.userId}`);if(resp.ok){const data=await resp.json();const oldWeapons=this.weaponData||{};this.weaponData=data.weapons;for(const[wid,wd]of Object.entries(data.weapons)){if(wd.unlocked&&!oldWeapons[wid]?.unlocked)this.showToast(`✨ 新兵器开刃：「${this.weaponMeta[wid].name}」已解锁！`);}this.updateWeaponUI();}}catch(e){}
+  }
+
+  // ==================== 每日任务 ====================
+  async showDailyTasks(){
+    this.audio.resume();
+    const overlay=document.getElementById('taskOverlay'),list=document.getElementById('taskList');
+    if(!this.apiReady){list.innerHTML='<div style="color:var(--text-dim);padding:20px">后端未连接</div>';}
+    else{
+      try{
+        const resp=await fetch(`${API_BASE}/api/daily-tasks/${this.userId}`);
+        const tasks=await resp.json();
+        list.innerHTML=tasks.map(t=>{
+          const progPct=Math.round(t.progress/t.target*100);
+          let statusClass='',btnHtml='';
+          if(t.claimed){statusClass='claimed';btnHtml='<span style="font-size:10px;color:var(--text-dim)">已领取</span>';}
+          else if(t.completed){statusClass='completed';btnHtml=`<button class="task-claim-btn" onclick="game.claimTask('${t.task_id}')">领 取</button>`;}
+          return`<div class="task-item ${statusClass}"><div style="font-size:18px">${t.completed?'✅':'📌'}</div><div style="flex:1"><div style="font-size:13px;color:var(--text)">${t.name}</div><div class="task-progress"><span class="${t.progress>=t.target?'done':''}">${t.progress}/${t.target}</span> · ${t.desc}</div></div><div class="task-reward">+${t.reward_spirit}灵力 +${t.reward_exp}经验</div>${btnHtml}</div>`;
+        }).join('');
+      }catch(e){list.innerHTML='<div style="color:var(--text-dim)">加载失败</div>';}
+    }
+    overlay.classList.add('active');
+  }
+
+  async claimTask(taskId){
+    try{
+      const resp=await fetch(`${API_BASE}/api/daily-tasks/claim`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:this.userId,task_id:taskId})});
+      const data=await resp.json();
+      if(resp.ok){
+        this.showToast(`✅ 领取成功！+${data.reward_spirit}灵力 +${data.reward_exp}经验`);
+        this.userData.spirit=data.spirit_total;
+        this.userData.exp=data.exp_total;
+        this.updateUI();
+        this.showDailyTasks();
+      }else{this.showToast(data.detail||'领取失败');}
+    }catch(e){this.showToast('领取失败');}
+  }
+
+  closeDailyTasks(){document.getElementById('taskOverlay').classList.remove('active');}
+
+  // ==================== 八卦知识库 ====================
+  async showKnowledge(){
+    this.audio.resume();
+    document.getElementById('knowledgeOverlay').classList.add('active');
+    document.getElementById('knowledgeDetail').style.display='none';
+    document.getElementById('knowledgeGrid').style.display='grid';
+    await this.loadKnowledgeGrid();
+  }
+
+  async loadKnowledgeGrid(search=''){
+    const grid=document.getElementById('knowledgeGrid');
+    if(!this.apiReady){grid.innerHTML='<div style="color:var(--text-dim);grid-column:1/-1;text-align:center;padding:20px">后端未连接</div>';return;}
+    try{
+      const resp=await fetch(`${API_BASE}/api/hexagrams?search=${encodeURIComponent(search)}`);
+      const hexs=await resp.json();
+      grid.innerHTML=hexs.map(h=>`<div class="knowledge-card" onclick="game.showHexagramDetail(${h.id})"><div class="kc-symbol">${h.symbol}</div><div class="kc-name">${h.name}</div></div>`).join('');
+    }catch(e){grid.innerHTML='<div style="color:var(--text-dim);grid-column:1/-1;text-align:center;padding:20px">加载失败</div>';}
+  }
+
+  searchKnowledge(){
+    const q=document.getElementById('knowledgeSearch').value;
+    document.getElementById('knowledgeDetail').style.display='none';
+    document.getElementById('knowledgeGrid').style.display='grid';
+    this.loadKnowledgeGrid(q);
+  }
+
+  async showHexagramDetail(hexId){
+    if(!this.apiReady)return;
+    try{
+      const resp=await fetch(`${API_BASE}/api/hexagram/${hexId}`);
+      const h=await resp.json();
+      const detail=document.getElementById('knowledgeDetail');
+      detail.innerHTML=`
+        <div style="text-align:center;margin-bottom:10px">
+          <div style="font-size:48px">${h.symbol}</div>
+          <div style="font-size:18px;color:var(--gold-light);letter-spacing:2px">第${h.id}卦 · ${h.name}</div>
+          <div style="font-size:12px;color:var(--text-dim)">上${h.upper}下${h.lower}</div>
+        </div>
+        <div style="margin-bottom:8px"><strong style="color:var(--gold-light)">卦辞：</strong>${h.judgment}</div>
+        <div style="margin-bottom:8px"><strong style="color:var(--gold-light)">大象：</strong>${h.image}</div>
+        <div style="margin-bottom:8px"><strong style="color:var(--gold-light)">爻辞：</strong>
+          ${h.lines.map(l=>`<div style="font-size:12px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.03)"><span style="color:var(--text-dim)">${l.position}爻：</span>${l.text}</div>`).join('')}
+        </div>
+      `;
+      detail.style.display='block';
+      document.getElementById('knowledgeGrid').style.display='none';
+    }catch(e){}
+  }
+
+  closeKnowledge(){
+    document.getElementById('knowledgeOverlay').classList.remove('active');
+    document.getElementById('knowledgeDetail').style.display='none';
+    document.getElementById('knowledgeGrid').style.display='grid';
+  }
+
+  showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(this._tt);this._tt=setTimeout(()=>t.classList.remove('show'),2200);}
+}
+
+window.addEventListener('DOMContentLoaded',()=>{window.game=new Game();});
+</script>
+</body>
+</html>
